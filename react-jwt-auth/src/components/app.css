@@ -1,0 +1,7 @@
+.dialog_box{
+  z-index:1000;
+  background-color: blue;
+  width: 400px;
+  margin: 0 auto;
+  position:absolute;
+}
