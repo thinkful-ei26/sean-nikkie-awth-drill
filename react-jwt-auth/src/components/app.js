@@ -15,23 +15,32 @@ export class App extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            inactive: false
+            idle: false
         };
     }
-    componentDidUpdate(prevProps) {
-        if (!prevProps.loggedIn && this.props.loggedIn) {
+
+    componentDidUpdate(prevProps) //compares how prop was before and how it is now 
+    {
+        if (!prevProps.loggedIn && this.props.loggedIn) //if we werent logged in and now we are, do this: 
+        {
             // When we are logged in, refresh the auth token periodically
             this.startPeriodicRefresh();
-            this.fiveMinutesInactivity();
-        } else if (prevProps.loggedIn && !this.props.loggedIn) {
+            this.startIdleTimer();
+            // this.fiveMinutesInactivity();
+        } else if (prevProps.loggedIn && !this.props.loggedIn) //if we were logged but now we're not, stop: 
+        {
             // Stop refreshing when we log out
             this.stopPeriodicRefresh();
-            this.stopFiveMinuteInactivity();
+            this.stopIdleTimer();
+            this.stopLogOutTimer();
+            console.log('in the else if for component update')
         }
     }
 
     componentWillUnmount() {
         this.stopPeriodicRefresh();
+        this.stopIdleTimer();
+        this.stopLogOutTimer();
     }
 
     startPeriodicRefresh() {
@@ -41,23 +50,55 @@ export class App extends React.Component {
         );
     }
 
-    // fiveMinutesInactivity() {
-    //     this.inactivityInterval = setInterval(
-    //         () => this.props.dispatch(clearAuth()),
-    //         1 * 60 * 1000
-    //     );
-    // }
-
-    fiveMinutesInactivity() {
-        this.inactivityInterval = setInterval(() => {
-            /*display dialogue*/
-            // let clicked = Window.confirm('Are you still here?');
-            // console.log(clicked);
-            this.setState({inactive: true});
-            setInterval(() => {this.props.dispatch(clearAuth()); this.setState({inactive: false})}, 60 * 1000)
-        }, 4 * 60 * 1000);
+    startIdleTimer(){
+        this.idleInterval = setInterval(()=>{
+            this.setState({
+                idle:true,
+            })
+            this.stopIdleTimer();
+            this.startLogOutTimer();
+            console.log('idle true');
+        }, 5*1000)
     }
-    // setInterval(fn that we want to do after time, time)
+
+    startLogOutTimer(){
+        clearInterval(this.logoutInterval);
+        this.logoutInterval= setInterval(()=>{
+            console.log('the state',this.state.idle);
+            if(this.state.idle===true)
+            {
+                this.props.dispatch(clearAuth());
+            }
+
+        },5* 1000 )
+    }
+
+    stopLogOutTimer(){
+        if(!this.logoutInterval){
+            return;
+        }
+        this.setState({
+            idle: false,
+        })
+        clearInterval(this.logoutInterval);
+    }
+
+    stopIdleTimer(){
+        if(!this.idleInterval){
+            return;
+        }
+
+        clearInterval(this.idleInterval);
+    }
+
+    restartIdleTimer(){
+        if(!this.idleInterval){
+            return;
+        }
+        clearInterval(this.idleInterval);
+        this.startIdleTimer();
+    }
+
 
     stopPeriodicRefresh() {
         if (!this.refreshInterval) {
@@ -67,28 +108,26 @@ export class App extends React.Component {
         clearInterval(this.refreshInterval);
     }
 
-    stopFiveMinuteInactivity() {
-        if (!this.inactivityInterval) {
-            return;
-        } //if we've already cleared it, leave
 
-        clearInterval(this.inactivityInterval);
-    }
     render() {
         let dialog_box = (
             <div className = "dialog_box">
                 <h3>Are you still there? You will be logged out soon due to inactivity!</h3>
                 <button onClick={()=> {
-                    this.stopFiveMinuteInactivity();
-                    this.fiveMinutesInactivity();
-                    this.setState({inactive:false});
+                    this.setState({idle:false});
+                    this.stopLogOutTimer();
                 }} type="button">Still here!</button>
             </div>
         );
         return (
-            <div className="app">
+            <div className="app" onMouseMove={ ()=> {                 
+                    if(this.props.loggedIn){
+                        this.restartIdleTimer();
+                    }
+                }   
+                }>
                 <HeaderBar />
-                {this.state.inactive ? dialog_box : undefined}
+                {this.state.idle && dialog_box}
                 <Route exact path="/" component={LandingPage} />
                 <Route exact path="/dashboard" component={Dashboard} />
                 <Route exact path="/register" component={RegistrationPage} />
